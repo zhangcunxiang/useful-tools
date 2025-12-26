@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import JSON5 from 'json5'
 import './App.css'
+import { detectLanguage, getTranslations } from './i18n'
 
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3001'
 
-function SectionTabs({ active, onChange }) {
+function SectionTabs({ active, onChange, t }) {
   const tabs = [
-    { id: 'timestamp', label: 'Timestamp' },
-    { id: 'json', label: 'JSON 格式化' },
-    { id: 'jwt', label: 'JWT' },
+    { id: 'timestamp', label: t.tabs.timestamp },
+    { id: 'json', label: t.tabs.json },
+    { id: 'jwt', label: t.tabs.jwt },
   ]
   return (
     <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
@@ -31,7 +32,7 @@ function SectionTabs({ active, onChange }) {
   )
 }
 
-function TimestampTool() {
+function TimestampTool({ t }) {
   const [now, setNow] = useState({ timestamp_ms: 0, timestamp_s: 0 })
   const [tz1, setTz1] = useState('Asia/Shanghai')
   const [unit1, setUnit1] = useState('ms')
@@ -50,7 +51,7 @@ function TimestampTool() {
         const data = await res.json()
         setNow(data)
       } catch {
-        setError('无法获取当前时间戳')
+        setError(t.common.fetchNowFailed)
       }
     }
     fetchNow()
@@ -67,7 +68,7 @@ function TimestampTool() {
     setToDateResult(null)
     const val = Number(tsInput)
     if (!Number.isFinite(val)) {
-      setError('时间戳必须是数字')
+      setError(t.common.timestampNumberRequired)
       return
     }
     try {
@@ -83,7 +84,7 @@ function TimestampTool() {
         setToDateResult(data)
       }
     } catch {
-      setError('请求失败')
+      setError(t.common.requestFailed)
     }
   }
 
@@ -91,7 +92,7 @@ function TimestampTool() {
     setError('')
     setToTsResult(null)
     if (!dateInput) {
-      setError('请输入日期字符串')
+      setError(t.common.dateStringRequired)
       return
     }
     try {
@@ -107,23 +108,23 @@ function TimestampTool() {
         setToTsResult(data)
       }
     } catch {
-      setError('请求失败')
+      setError(t.common.requestFailed)
     }
   }
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16 }}>时间戳工具</h2>
+      <h2 style={{ marginBottom: 16 }}>{t.timestamp.title}</h2>
       <div style={{ marginBottom: 20, padding: 16, background: '#e8f5e9', borderRadius: 8, display: 'flex', gap: 32, justifyContent: 'center' }}>
-        <div style={{ fontSize: '1.2em' }}>当前时间戳 (ms): <code style={{ fontSize: '1.2em', color: '#2e7d32' }}>{now.timestamp_ms}</code></div>
-        <div style={{ fontSize: '1.2em' }}>当前时间戳 (s): <code style={{ fontSize: '1.2em', color: '#2e7d32' }}>{now.timestamp_s}</code></div>
+        <div style={{ fontSize: '1.2em' }}>{t.common.currentMs}: <code style={{ fontSize: '1.2em', color: '#2e7d32' }}>{now.timestamp_ms}</code></div>
+        <div style={{ fontSize: '1.2em' }}>{t.common.currentS}: <code style={{ fontSize: '1.2em', color: '#2e7d32' }}>{now.timestamp_s}</code></div>
       </div>
       <div className="tool-grid">
         <div className="tool-panel">
-          <h3 style={{ marginTop: 0 }}>时间戳 → 日期</h3>
+          <h3 style={{ marginTop: 0 }}>{t.timestamp.toDate}</h3>
           <div style={{ marginBottom: 12 }}>
             <input
-              placeholder="输入时间戳"
+              placeholder={t.timestamp.timestampPlaceholder}
               value={tsInput}
               onChange={e => setTsInput(e.target.value)}
               style={{ width: '100%' }}
@@ -136,7 +137,7 @@ function TimestampTool() {
                 name="unit1"
                 checked={unit1 === 'ms'}
                 onChange={() => setUnit1('ms')}
-              /> <span style={{ marginLeft: 4 }}>毫秒</span>
+              /> <span style={{ marginLeft: 4 }}>{t.common.milliseconds}</span>
             </label>
             <label style={{ marginLeft: 16, cursor: 'pointer' }}>
               <input
@@ -144,7 +145,7 @@ function TimestampTool() {
                 name="unit1"
                 checked={unit1 === 's'}
                 onChange={() => setUnit1('s')}
-              /> <span style={{ marginLeft: 4 }}>秒</span>
+              /> <span style={{ marginLeft: 4 }}>{t.common.seconds}</span>
             </label>
           </div>
           <div style={{ marginBottom: 16 }}>
@@ -152,26 +153,26 @@ function TimestampTool() {
               {commonZones.map(z => <option key={z} value={z}>{z}</option>)}
             </select>
             <input
-              placeholder="自定义时区，例如 Asia/Shanghai"
+              placeholder={t.common.timezonePlaceholder}
               value={tz1}
               onChange={e => setTz1(e.target.value)}
               style={{ width: '100%' }}
             />
           </div>
-          <button onClick={handleToDate} style={{ width: '100%' }}>转换</button>
+          <button onClick={handleToDate} style={{ width: '100%' }}>{t.common.convert}</button>
           {toDateResult && (
             <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 6, textAlign: 'left' }}>
-              <div style={{ marginBottom: 4 }}><strong>ISO:</strong> <code>{toDateResult.iso}</code></div>
-              <div style={{ marginBottom: 4 }}><strong>格式化:</strong> <code>{toDateResult.formatted}</code></div>
-              <div><strong>时区:</strong> <code>{toDateResult.zone}</code></div>
+              <div style={{ marginBottom: 4 }}><strong>{t.timestamp.iso}</strong> <code>{toDateResult.iso}</code></div>
+              <div style={{ marginBottom: 4 }}><strong>{t.timestamp.formatted}</strong> <code>{toDateResult.formatted}</code></div>
+              <div><strong>{t.timestamp.zone}</strong> <code>{toDateResult.zone}</code></div>
             </div>
           )}
         </div>
         <div className="tool-panel">
-          <h3 style={{ marginTop: 0 }}>日期 → 时间戳</h3>
+          <h3 style={{ marginTop: 0 }}>{t.timestamp.toTimestamp}</h3>
           <div style={{ marginBottom: 12 }}>
             <input
-              placeholder="例如 2024-12-26 12:00:00 或 ISO 字符串"
+              placeholder={t.timestamp.datePlaceholder}
               value={dateInput}
               onChange={e => setDateInput(e.target.value)}
               style={{ width: '100%' }}
@@ -179,7 +180,7 @@ function TimestampTool() {
           </div>
           <div style={{ marginBottom: 12 }}>
             <input
-              placeholder="可选格式，例如 yyyy-LL-dd HH:mm:ss"
+              placeholder={t.timestamp.formatPlaceholder}
               value={formatInput}
               onChange={e => setFormatInput(e.target.value)}
               style={{ width: '100%' }}
@@ -190,18 +191,18 @@ function TimestampTool() {
               {commonZones.map(z => <option key={z} value={z}>{z}</option>)}
             </select>
             <input
-              placeholder="自定义时区，例如 Asia/Shanghai"
+              placeholder={t.common.timezonePlaceholder}
               value={tz2}
               onChange={e => setTz2(e.target.value)}
               style={{ width: '100%' }}
             />
           </div>
-          <button onClick={handleToTimestamp} style={{ width: '100%' }}>转换</button>
+          <button onClick={handleToTimestamp} style={{ width: '100%' }}>{t.common.convert}</button>
           {toTsResult && (
             <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 6, textAlign: 'left' }}>
-              <div style={{ marginBottom: 4 }}><strong>毫秒:</strong> <code>{toTsResult.timestamp_ms}</code></div>
-              <div style={{ marginBottom: 4 }}><strong>秒:</strong> <code>{toTsResult.timestamp_s}</code></div>
-              <div><strong>UTC ISO:</strong> <code>{toTsResult.iso}</code></div>
+              <div style={{ marginBottom: 4 }}><strong>{t.timestamp.ms}</strong> <code>{toTsResult.timestamp_ms}</code></div>
+              <div style={{ marginBottom: 4 }}><strong>{t.timestamp.s}</strong> <code>{toTsResult.timestamp_s}</code></div>
+              <div><strong>{t.timestamp.utcIso}</strong> <code>{toTsResult.iso}</code></div>
             </div>
           )}
         </div>
@@ -395,7 +396,7 @@ function JsonTreeView({ data }) {
   )
 }
 
-function JsonTool() {
+function JsonTool({ t }) {
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [parsedData, setParsedData] = useState(null)
@@ -442,7 +443,7 @@ function JsonTool() {
       setParsedData(obj)
       setViewMode('tree')
     } catch (e) {
-      setError('JSON 解析失败: ' + e.message)
+      setError(t.json.parseError + e.message)
     }
   }
   const minify = () => {
@@ -453,24 +454,24 @@ function JsonTool() {
       setParsedData(null)
       setViewMode('text')
     } catch (e) {
-      setError('JSON 解析失败: ' + e.message)
+      setError(t.json.parseError + e.message)
     }
   }
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(output || input)
     } catch {
-      setError('复制失败')
+      setError(t.common.copyFailed)
     }
   }
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16 }}>JSON 格式化</h2>
+      <h2 style={{ marginBottom: 16 }}>{t.json.title}</h2>
       <div className="tool-grid">
         <div className="tool-panel">
           <textarea
-            placeholder='在此粘贴 JSON'
+            placeholder={t.json.placeholder}
             value={input}
             onChange={e => setInput(e.target.value)}
             rows={18}
@@ -491,7 +492,7 @@ function JsonTool() {
                   border: '1px solid transparent',
                   opacity: !parsedData ? 0.5 : 1
                 }}
-              >Tree</button>
+              >{t.common.tree}</button>
              <button 
                 onClick={() => setViewMode('text')}
                 style={{ 
@@ -502,7 +503,7 @@ function JsonTool() {
                   boxShadow: 'none',
                   border: '1px solid transparent'
                 }}
-              >Text</button>
+              >{t.common.text}</button>
            </div>
           <div style={{ flex: 1, padding: 8, overflow: 'auto', maxHeight: 400 }}>
             {viewMode === 'tree' && parsedData ? (
@@ -514,17 +515,17 @@ function JsonTool() {
         </div>
       </div>
       <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
-        <button onClick={format}>格式化</button>
-        <button onClick={minify}>压缩</button>
-        <button onClick={copy}>复制</button>
-        <button onClick={clear} style={{ backgroundColor: '#ef5350' }}>清空</button>
+        <button onClick={format}>{t.common.format}</button>
+        <button onClick={minify}>{t.common.minify}</button>
+        <button onClick={copy}>{t.common.copy}</button>
+        <button onClick={clear} style={{ backgroundColor: '#ef5350' }}>{t.common.clear}</button>
       </div>
       {error && <div style={{ color: '#d32f2f', marginTop: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
     </div>
   )
 }
 
-function JwtTool() {
+function JwtTool({ t }) {
   const [tokenInput, setTokenInput] = useState('')
   const [decoded, setDecoded] = useState(null)
   const [payloadInput, setPayloadInput] = useState(`{
@@ -554,7 +555,7 @@ function JwtTool() {
           setDecoded(data)
         }
       } catch {
-        setError('解码请求失败')
+        setError(t.jwt.decodeError)
       }
     }
     decode()
@@ -577,18 +578,18 @@ function JwtTool() {
         setEncoded(data.token)
       }
     } catch (e) {
-      setError('payload 需要合法的 JSON: ' + e.message)
+      setError(t.jwt.payloadError + e.message)
     }
   }
 
   return (
     <div>
-      <h2 style={{ marginBottom: 16 }}>JWT 工具</h2>
+      <h2 style={{ marginBottom: 16 }}>{t.jwt.title}</h2>
       <div className="tool-grid">
         <div className="tool-panel">
-          <h3 style={{ marginTop: 0 }}>解码 Token</h3>
+          <h3 style={{ marginTop: 0 }}>{t.jwt.decodeTitle}</h3>
           <textarea
-            placeholder="粘贴 JWT Token"
+            placeholder={t.jwt.tokenPlaceholder}
             value={tokenInput}
             onChange={e => setTokenInput(e.target.value)}
             rows={8}
@@ -596,11 +597,11 @@ function JwtTool() {
           />
           {decoded && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4, color: '#444' }}>Header:</div>
+              <div style={{ fontWeight: 600, marginBottom: 4, color: '#444' }}>{t.jwt.headerLabel}</div>
               <div style={{ border: '1px solid #ddd', padding: 8, background: '#f9f9f9', borderRadius: 4 }}>
                 <CodeWithLineNumbers text={JSON.stringify(decoded.header, null, 2)} />
               </div>
-              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4, color: '#444' }}>Payload:</div>
+              <div style={{ fontWeight: 600, marginTop: 12, marginBottom: 4, color: '#444' }}>{t.jwt.payloadLabel}</div>
               <div style={{ border: '1px solid #ddd', padding: 8, background: '#f9f9f9', borderRadius: 4 }}>
                 <CodeWithLineNumbers text={JSON.stringify(decoded.payload, null, 2)} />
               </div>
@@ -608,26 +609,26 @@ function JwtTool() {
           )}
         </div>
         <div className="tool-panel">
-          <h3 style={{ marginTop: 0 }}>生成 Token</h3>
+          <h3 style={{ marginTop: 0 }}>{t.jwt.encodeTitle}</h3>
           <textarea
-            placeholder="payload JSON"
+            placeholder={t.jwt.payloadPlaceholder}
             value={payloadInput}
             onChange={e => setPayloadInput(e.target.value)}
             rows={10}
             style={{ width: '100%', fontFamily: 'monospace', marginBottom: 12 }}
           />
           <input
-            placeholder="密钥"
+            placeholder={t.jwt.secretPlaceholder}
             value={secretInput}
             onChange={e => setSecretInput(e.target.value)}
             style={{ width: '100%', padding: 8, marginBottom: 16 }}
           />
           <div>
-            <button onClick={handleEncode} style={{ width: '100%' }}>生成</button>
+            <button onClick={handleEncode} style={{ width: '100%' }}>{t.jwt.generate}</button>
           </div>
           {encoded && (
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4, color: '#444' }}>Token:</div>
+              <div style={{ fontWeight: 600, marginBottom: 4, color: '#444' }}>{t.common.tokenLabel}</div>
               <div style={{ border: '1px solid #ddd', padding: 12, wordBreak: 'break-all', background: '#f0f4c3', borderRadius: 4, fontFamily: 'monospace' }}>
                 {encoded}
               </div>
@@ -641,14 +642,23 @@ function JwtTool() {
 }
 
 function App() {
+  const [lang] = useState(() => detectLanguage())
+  const t = useMemo(() => getTranslations(lang), [lang])
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang
+    }
+  }, [lang])
+
   const [active, setActive] = useState('timestamp')
   return (
     <div id="root-app">
-      <h1>我的工具集</h1>
-      <SectionTabs active={active} onChange={setActive} />
-      {active === 'timestamp' && <TimestampTool />}
-      {active === 'json' && <JsonTool />}
-      {active === 'jwt' && <JwtTool />}
+      <h1>{t.appTitle}</h1>
+      <SectionTabs active={active} onChange={setActive} t={t} />
+      {active === 'timestamp' && <TimestampTool t={t} />}
+      {active === 'json' && <JsonTool t={t} />}
+      {active === 'jwt' && <JwtTool t={t} />}
     </div>
   )
 }
