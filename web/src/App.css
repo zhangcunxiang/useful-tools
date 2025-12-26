@@ -1,0 +1,53 @@
+#root {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.card {
+  padding: 2em;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+}
+
+.tool-panel {
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  background-color: #fafdfb;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.tab-active {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border-color: var(--primary-color) !important;
+}
+
+.tab-inactive {
+  background-color: white !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.tab-inactive:hover {
+  background-color: #e6f4ea !important;
+  color: var(--primary-color) !important;
+}
+
+/* Specific layout adjustments */
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .tool-grid {
+    grid-template-columns: 1fr;
+  }
+}

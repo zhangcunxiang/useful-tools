@@ -1,0 +1,13 @@
+{
+  "name": "my-tools-root",
+  "private": true,
+  "scripts": {
+    "build": "cd web && npm install && npm run build"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "fastify": "^4.17.0",
+    "jsonwebtoken": "^9.0.3",
+    "luxon": "^3.7.2"
+  }
+}

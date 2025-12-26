@@ -1,0 +1,16 @@
+{
+  "name": "my-tools-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fastify backend for timestamp conversion and JWT tools",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "fastify": "^4.17.0",
+    "jsonwebtoken": "^9.0.3",
+    "luxon": "^3.7.2"
+  }
+}
