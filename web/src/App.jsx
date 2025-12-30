@@ -35,10 +35,15 @@ function SectionTabs({ active, onChange, t }) {
 function TimestampTool({ t }) {
   const [now, setNow] = useState({ timestamp_ms: 0, timestamp_s: 0 })
   const [tz1, setTz1] = useState('Asia/Shanghai')
+  const [useCustomTz1, setUseCustomTz1] = useState(false)
+  const [customTz1, setCustomTz1] = useState('Asia/Shanghai')
   const [unit1, setUnit1] = useState('ms')
   const [tsInput, setTsInput] = useState('')
   const [toDateResult, setToDateResult] = useState(null)
+  
   const [tz2, setTz2] = useState('Asia/Shanghai')
+  const [useCustomTz2, setUseCustomTz2] = useState(false)
+  const [customTz2, setCustomTz2] = useState('Asia/Shanghai')
   const [dateInput, setDateInput] = useState('')
   const [formatInput, setFormatInput] = useState('')
   const [toTsResult, setToTsResult] = useState(null)
@@ -60,7 +65,31 @@ function TimestampTool({ t }) {
   }, [])
 
   const commonZones = useMemo(() => [
-    'UTC', 'Asia/Shanghai', 'Asia/Tokyo', 'Europe/London', 'America/New_York'
+    'UTC',
+    'Pacific/Midway',      // UTC-11
+    'America/Honolulu',    // UTC-10
+    'America/Anchorage',   // UTC-9
+    'America/Los_Angeles', // UTC-8
+    'America/Denver',      // UTC-7
+    'America/Chicago',     // UTC-6
+    'America/New_York',    // UTC-5
+    'America/Halifax',     // UTC-4
+    'America/Sao_Paulo',   // UTC-3
+    'Atlantic/South_Georgia', // UTC-2
+    'Atlantic/Azores',     // UTC-1
+    'Europe/London',       // UTC+0
+    'Europe/Paris',        // UTC+1
+    'Europe/Istanbul',     // UTC+2
+    'Asia/Moscow',         // UTC+3
+    'Asia/Dubai',          // UTC+4
+    'Asia/Karachi',        // UTC+5
+    'Asia/Dhaka',          // UTC+6
+    'Asia/Bangkok',        // UTC+7
+    'Asia/Shanghai',       // UTC+8
+    'Asia/Tokyo',          // UTC+9
+    'Australia/Sydney',    // UTC+10
+    'Pacific/Noumea',      // UTC+11
+    'Pacific/Auckland',    // UTC+12
   ], [])
 
   const handleToDate = async () => {
@@ -71,11 +100,12 @@ function TimestampTool({ t }) {
       setError(t.common.timestampNumberRequired)
       return
     }
+    const targetTz = useCustomTz1 ? customTz1 : tz1
     try {
       const res = await fetch(`${API_BASE}/api/timestamp/to-date`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp: val, unit: unit1, tz: tz1 })
+        body: JSON.stringify({ timestamp: val, unit: unit1, tz: targetTz })
       })
       const data = await res.json()
       if (data.error) {
@@ -95,11 +125,12 @@ function TimestampTool({ t }) {
       setError(t.common.dateStringRequired)
       return
     }
+    const targetTz = useCustomTz2 ? customTz2 : tz2
     try {
       const res = await fetch(`${API_BASE}/api/timestamp/from-date`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateInput, tz: tz2, format: formatInput || undefined })
+        body: JSON.stringify({ date: dateInput, tz: targetTz, format: formatInput || undefined })
       })
       const data = await res.json()
       if (data.error) {
@@ -149,15 +180,33 @@ function TimestampTool({ t }) {
             </label>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <select value={tz1} onChange={e => setTz1(e.target.value)} style={{ width: '100%', marginBottom: 8 }}>
-              {commonZones.map(z => <option key={z} value={z}>{z}</option>)}
-            </select>
-            <input
-              placeholder={t.common.timezonePlaceholder}
-              value={tz1}
-              onChange={e => setTz1(e.target.value)}
-              style={{ width: '100%' }}
-            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <select 
+                value={tz1} 
+                onChange={e => setTz1(e.target.value)} 
+                disabled={useCustomTz1}
+                style={{ flex: 1, opacity: useCustomTz1 ? 0.5 : 1 }}
+              >
+                {commonZones.map(z => <option key={z} value={z}>{z}</option>)}
+              </select>
+              <label style={{ cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9em' }}>
+                <input 
+                  type="checkbox" 
+                  checked={useCustomTz1} 
+                  onChange={e => setUseCustomTz1(e.target.checked)}
+                  style={{ marginRight: 4 }}
+                />
+                Custom
+              </label>
+            </div>
+            {useCustomTz1 && (
+              <input
+                placeholder={t.common.timezonePlaceholder}
+                value={customTz1}
+                onChange={e => setCustomTz1(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            )}
           </div>
           <button onClick={handleToDate} style={{ width: '100%' }}>{t.common.convert}</button>
           {toDateResult && (
@@ -187,15 +236,33 @@ function TimestampTool({ t }) {
             />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <select value={tz2} onChange={e => setTz2(e.target.value)} style={{ width: '100%', marginBottom: 8 }}>
-              {commonZones.map(z => <option key={z} value={z}>{z}</option>)}
-            </select>
-            <input
-              placeholder={t.common.timezonePlaceholder}
-              value={tz2}
-              onChange={e => setTz2(e.target.value)}
-              style={{ width: '100%' }}
-            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <select 
+                value={tz2} 
+                onChange={e => setTz2(e.target.value)} 
+                disabled={useCustomTz2}
+                style={{ flex: 1, opacity: useCustomTz2 ? 0.5 : 1 }}
+              >
+                {commonZones.map(z => <option key={z} value={z}>{z}</option>)}
+              </select>
+              <label style={{ cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9em' }}>
+                <input 
+                  type="checkbox" 
+                  checked={useCustomTz2} 
+                  onChange={e => setUseCustomTz2(e.target.checked)}
+                  style={{ marginRight: 4 }}
+                />
+                Custom
+              </label>
+            </div>
+            {useCustomTz2 && (
+              <input
+                placeholder={t.common.timezonePlaceholder}
+                value={customTz2}
+                onChange={e => setCustomTz2(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            )}
           </div>
           <button onClick={handleToTimestamp} style={{ width: '100%' }}>{t.common.convert}</button>
           {toTsResult && (
