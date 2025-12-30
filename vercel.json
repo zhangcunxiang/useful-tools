@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/_vercel/speed-insights/(.*)", "destination": "/_vercel/speed-insights/$1" },
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
