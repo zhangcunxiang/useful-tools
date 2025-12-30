@@ -25,6 +25,7 @@ const translations = {
       timestampNumberRequired: 'Timestamp must be a number',
       dateStringRequired: 'Please enter a date string',
       copyFailed: 'Copy failed',
+      invalidTimezoneList: 'Timezone must be selected from the supported list',
     },
     timestamp: {
       title: 'Timestamp Tool',
@@ -85,6 +86,7 @@ const translations = {
       timestampNumberRequired: '时间戳必须是数字',
       dateStringRequired: '请输入日期字符串',
       copyFailed: '复制失败',
+      invalidTimezoneList: '请选择列表中的合法时区',
     },
     timestamp: {
       title: '时间戳工具',

@@ -2,8 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react'
 import JSON5 from 'json5'
 import './App.css'
 import { detectLanguage, getTranslations } from './i18n'
+import tzListRaw from '../timezone.csv?raw'
 
-const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:3001'
+const API_BASE = (() => {
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname
+    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3001'
+  }
+  return import.meta.env.PROD ? '' : 'http://localhost:3001'
+})()
 
 function SectionTabs({ active, onChange, t }) {
   const tabs = [
@@ -49,6 +56,13 @@ function TimestampTool({ t }) {
   const [toTsResult, setToTsResult] = useState(null)
   const [error, setError] = useState('')
 
+  const tzArray = useMemo(() => {
+    const lines = String(tzListRaw || '').split('\n').map(s => s.trim()).filter(Boolean)
+    const header = lines[0] && lines[0].toLowerCase() === 'timezone' ? 1 : 0
+    return lines.slice(header)
+  }, [])
+  const tzSet = useMemo(() => new Set(tzArray), [tzArray])
+
   useEffect(() => {
     const fetchNow = async () => {
       try {
@@ -64,33 +78,7 @@ function TimestampTool({ t }) {
     return () => clearInterval(id)
   }, [])
 
-  const commonZones = useMemo(() => [
-    'UTC',
-    'Pacific/Midway',      // UTC-11
-    'America/Honolulu',    // UTC-10
-    'America/Anchorage',   // UTC-9
-    'America/Los_Angeles', // UTC-8
-    'America/Denver',      // UTC-7
-    'America/Chicago',     // UTC-6
-    'America/New_York',    // UTC-5
-    'America/Halifax',     // UTC-4
-    'America/Sao_Paulo',   // UTC-3
-    'Atlantic/South_Georgia', // UTC-2
-    'Atlantic/Azores',     // UTC-1
-    'Europe/London',       // UTC+0
-    'Europe/Paris',        // UTC+1
-    'Europe/Istanbul',     // UTC+2
-    'Asia/Moscow',         // UTC+3
-    'Asia/Dubai',          // UTC+4
-    'Asia/Karachi',        // UTC+5
-    'Asia/Dhaka',          // UTC+6
-    'Asia/Bangkok',        // UTC+7
-    'Asia/Shanghai',       // UTC+8
-    'Asia/Tokyo',          // UTC+9
-    'Australia/Sydney',    // UTC+10
-    'Pacific/Noumea',      // UTC+11
-    'Pacific/Auckland',    // UTC+12
-  ], [])
+  const commonZones = tzArray
 
   const handleToDate = async () => {
     setError('')
@@ -101,6 +89,10 @@ function TimestampTool({ t }) {
       return
     }
     const targetTz = useCustomTz1 ? customTz1 : tz1
+    if (!tzSet.has(targetTz)) {
+      setError(t.common.invalidTimezoneList || 'Timezone must be from the supported list')
+      return
+    }
     try {
       const res = await fetch(`${API_BASE}/api/timestamp/to-date`, {
         method: 'POST',
@@ -126,6 +118,10 @@ function TimestampTool({ t }) {
       return
     }
     const targetTz = useCustomTz2 ? customTz2 : tz2
+    if (!tzSet.has(targetTz)) {
+      setError(t.common.invalidTimezoneList || 'Timezone must be from the supported list')
+      return
+    }
     try {
       const res = await fetch(`${API_BASE}/api/timestamp/from-date`, {
         method: 'POST',
@@ -146,6 +142,7 @@ function TimestampTool({ t }) {
   return (
     <div>
       <h2 style={{ marginBottom: 16 }}>{t.timestamp.title}</h2>
+      {error && <div style={{ color: '#d32f2f', marginBottom: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
       <div style={{ marginBottom: 20, padding: 16, background: '#e8f5e9', borderRadius: 8, display: 'flex', gap: 32, justifyContent: 'center' }}>
         <div style={{ fontSize: '1.2em' }}>{t.common.currentMs}: <code style={{ fontSize: '1.2em', color: '#2e7d32' }}>{now.timestamp_ms}</code></div>
         <div style={{ fontSize: '1.2em' }}>{t.common.currentS}: <code style={{ fontSize: '1.2em', color: '#2e7d32' }}>{now.timestamp_s}</code></div>
@@ -274,7 +271,6 @@ function TimestampTool({ t }) {
           )}
         </div>
       </div>
-      {error && <div style={{ color: '#d32f2f', marginTop: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
     </div>
   )
 }
@@ -535,6 +531,7 @@ function JsonTool({ t }) {
   return (
     <div>
       <h2 style={{ marginBottom: 16 }}>{t.json.title}</h2>
+      {error && <div style={{ color: '#d32f2f', marginBottom: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <textarea
@@ -587,7 +584,6 @@ function JsonTool({ t }) {
         <button onClick={copy}>{t.common.copy}</button>
         <button onClick={clear} style={{ backgroundColor: '#ef5350' }}>{t.common.clear}</button>
       </div>
-      {error && <div style={{ color: '#d32f2f', marginTop: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
     </div>
   )
 }
@@ -652,6 +648,7 @@ function JwtTool({ t }) {
   return (
     <div>
       <h2 style={{ marginBottom: 16 }}>{t.jwt.title}</h2>
+      {error && <div style={{ color: '#d32f2f', marginBottom: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
       <div className="tool-grid">
         <div className="tool-panel">
           <h3 style={{ marginTop: 0 }}>{t.jwt.decodeTitle}</h3>
@@ -703,7 +700,6 @@ function JwtTool({ t }) {
           )}
         </div>
       </div>
-      {error && <div style={{ color: '#d32f2f', marginTop: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
     </div>
   )
 }
