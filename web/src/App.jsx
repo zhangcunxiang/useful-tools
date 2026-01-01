@@ -17,6 +17,7 @@ function SectionTabs({ active, onChange, t }) {
     { id: 'timestamp', label: t.tabs.timestamp },
     { id: 'json', label: t.tabs.json },
     { id: 'jwt', label: t.tabs.jwt },
+    { id: 'diff', label: t.tabs.diff },
   ]
   return (
     <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
@@ -704,6 +705,61 @@ function JwtTool({ t }) {
   )
 }
 
+function DiffTool({ t }) {
+  const [original, setOriginal] = useState('')
+  const [subset, setSubset] = useState('')
+  const [difference, setDifference] = useState('')
+
+  const handleCompute = () => {
+    const setA = new Set(original.split('\n').map(s => s.trim()).filter(Boolean))
+    const setB = new Set(subset.split('\n').map(s => s.trim()).filter(Boolean))
+    
+    const diff = [...setA].filter(x => !setB.has(x))
+    setDifference(diff.join('\n'))
+  }
+
+  return (
+    <div>
+      <h2 style={{ marginBottom: 16 }}>{t.diff.title}</h2>
+      <div className="tool-grid">
+        <div className="tool-panel">
+          <h3 style={{ marginTop: 0 }}>{t.diff.original}</h3>
+          <textarea
+            placeholder={t.diff.placeholder}
+            value={original}
+            onChange={e => setOriginal(e.target.value)}
+            rows={12}
+            style={{ width: '100%', fontFamily: 'monospace', resize: 'vertical' }}
+          />
+        </div>
+        <div className="tool-panel">
+          <h3 style={{ marginTop: 0 }}>{t.diff.subset}</h3>
+          <textarea
+            placeholder={t.diff.placeholder}
+            value={subset}
+            onChange={e => setSubset(e.target.value)}
+            rows={12}
+            style={{ width: '100%', fontFamily: 'monospace', resize: 'vertical' }}
+          />
+        </div>
+      </div>
+      <div style={{ marginTop: 16, marginBottom: 16, textAlign: 'center' }}>
+        <button onClick={handleCompute} style={{ padding: '10px 30px', fontSize: '1.1em' }}>{t.diff.compute}</button>
+      </div>
+      
+      <div className="tool-panel" style={{ background: '#f0f4c3' }}>
+        <h3 style={{ marginTop: 0 }}>{t.diff.difference} {difference && <span style={{fontSize: '0.8em', fontWeight: 'normal'}}>({difference.split('\n').length})</span>}</h3>
+        <textarea
+          readOnly
+          value={difference}
+          rows={10}
+          style={{ width: '100%', fontFamily: 'monospace', background: '#fff', resize: 'vertical' }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [lang] = useState(() => detectLanguage())
   const t = useMemo(() => getTranslations(lang), [lang])
@@ -722,6 +778,7 @@ function App() {
       {active === 'timestamp' && <TimestampTool t={t} />}
       {active === 'json' && <JsonTool t={t} />}
       {active === 'jwt' && <JwtTool t={t} />}
+      {active === 'diff' && <DiffTool t={t} />}
     </div>
   )
 }

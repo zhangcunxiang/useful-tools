@@ -5,6 +5,7 @@ const translations = {
       timestamp: 'Timestamp',
       json: 'JSON Formatter',
       jwt: 'JWT',
+      diff: 'Set Diff',
     },
     common: {
       currentMs: 'Current timestamp (ms)',
@@ -59,6 +60,14 @@ const translations = {
       headerLabel: 'Header:',
       payloadLabel: 'Payload:',
     },
+    diff: {
+      title: 'Set Difference',
+      original: 'Original Set (Mother)',
+      subset: 'Subset (Child)',
+      difference: 'Difference',
+      placeholder: 'Enter items, one per line',
+      compute: 'Compute Difference',
+    },
   },
   zh: {
     appTitle: '我的工具集',
@@ -66,6 +75,7 @@ const translations = {
       timestamp: '时间戳',
       json: 'JSON 格式化',
       jwt: 'JWT',
+      diff: '差集计算',
     },
     common: {
       currentMs: '当前时间戳 (ms)',
@@ -119,6 +129,14 @@ const translations = {
       payloadError: 'payload 需要合法的 JSON: ',
       headerLabel: 'Header:',
       payloadLabel: 'Payload:',
+    },
+    diff: {
+      title: '差集计算',
+      original: '母集',
+      subset: '子集',
+      difference: '差集',
+      placeholder: '输入内容，每行一项',
+      compute: '计算差集',
     },
   }
 }
