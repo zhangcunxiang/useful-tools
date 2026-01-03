@@ -181,7 +181,7 @@ const buildServer = () => {
       const payload = req.body || {};
       
       const axios = require('axios');
-      const response = await axios.post('https://ilabs.app.n8n.cloud/webhook/081f1ae0-b7c1-423d-9ce5-96f3b6d4fd37', payload);
+      const response = await axios.post('http://localhost:5678/webhook/081f1ae0-b7c1-423d-9ce5-96f3b6d4fd37', payload);
 
       return response.data;
     } catch (e) {
