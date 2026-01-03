@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
+    "axios": "^1.13.2",
     "fastify": "^4.17.0",
     "jsonwebtoken": "^9.0.3",
     "luxon": "^3.7.2"

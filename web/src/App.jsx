@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import JSON5 from 'json5'
+import _ from 'lodash'
+import { DateTime } from 'luxon'
+import moment from 'moment'
 import './App.css'
 import { detectLanguage, getTranslations } from './i18n'
 import tzListRaw from '../timezone.csv?raw'
@@ -18,6 +21,7 @@ function SectionTabs({ active, onChange, t }) {
     { id: 'json', label: t.tabs.json },
     { id: 'jwt', label: t.tabs.jwt },
     { id: 'diff', label: t.tabs.diff },
+    { id: 'automation', label: t.tabs.automation },
   ]
   return (
     <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
@@ -709,18 +713,59 @@ function DiffTool({ t }) {
   const [original, setOriginal] = useState('')
   const [subset, setSubset] = useState('')
   const [difference, setDifference] = useState('')
+  const [error, setError] = useState('')
+  const [diffCount, setDiffCount] = useState(0)
 
   const handleCompute = () => {
-    const setA = new Set(original.split('\n').map(s => s.trim()).filter(Boolean))
-    const setB = new Set(subset.split('\n').map(s => s.trim()).filter(Boolean))
-    
-    const diff = [...setA].filter(x => !setB.has(x))
-    setDifference(diff.join('\n'))
+    setError('')
+    setDifference('')
+    setDiffCount(0)
+
+    if (!original.trim()) return
+
+    let objA = null
+    let isJsonA = false
+    try {
+      objA = JSON5.parse(original)
+      isJsonA = true
+    } catch {
+      // Not JSON, treat as text
+    }
+
+    if (isJsonA) {
+      // JSON Mode
+      let objB = null
+      try {
+        objB = JSON5.parse(subset)
+      } catch {
+        setError(t.diff.subsetNotJson)
+        return
+      }
+
+      if (!Array.isArray(objA) || !Array.isArray(objB)) {
+        setError(t.diff.notArray)
+        return
+      }
+
+      const diff = _.differenceWith(objA, objB, _.isEqual)
+      setDifference(JSON.stringify(diff, null, 2))
+      setDiffCount(diff.length)
+    } else {
+      // Text Mode
+      const setA = new Set(original.split('\n').map(s => s.trim()).filter(Boolean))
+      const setB = new Set(subset.split('\n').map(s => s.trim()).filter(Boolean))
+      
+      const diff = [...setA].filter(x => !setB.has(x))
+      setDifference(diff.join('\n'))
+      setDiffCount(diff.length)
+    }
   }
 
   return (
     <div>
       <h2 style={{ marginBottom: 16 }}>{t.diff.title}</h2>
+      {error && <div style={{ color: '#d32f2f', marginBottom: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
+      
       <div className="tool-grid">
         <div className="tool-panel">
           <h3 style={{ marginTop: 0 }}>{t.diff.original}</h3>
@@ -748,7 +793,7 @@ function DiffTool({ t }) {
       </div>
       
       <div className="tool-panel" style={{ background: '#f0f4c3' }}>
-        <h3 style={{ marginTop: 0 }}>{t.diff.difference} {difference && <span style={{fontSize: '0.8em', fontWeight: 'normal'}}>({difference.split('\n').length})</span>}</h3>
+        <h3 style={{ marginTop: 0 }}>{t.diff.difference} {difference && <span style={{fontSize: '0.8em', fontWeight: 'normal'}}>({diffCount})</span>}</h3>
         <textarea
           readOnly
           value={difference}
@@ -756,6 +801,162 @@ function DiffTool({ t }) {
           style={{ width: '100%', fontFamily: 'monospace', background: '#fff', resize: 'vertical' }}
         />
       </div>
+    </div>
+  )
+}
+
+function AutomationTool({ t }) {
+  const [isVerified, setIsVerified] = useState(false)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [exchangeRate, setExchangeRate] = useState('')
+  const [salary, setSalary] = useState('')
+  const [status, setStatus] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('automation_password')
+    if (saved) {
+      handleVerify(saved)
+    }
+  }, [])
+
+  const handleVerify = async (pwdInput) => {
+    const pwd = typeof pwdInput === 'string' ? pwdInput : password
+    setError('')
+    try {
+      const res = await fetch(`${API_BASE}/api/automation/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setIsVerified(true)
+        localStorage.setItem('automation_password', pwd)
+        if (typeof pwdInput === 'string') setPassword(pwdInput)
+      } else {
+        if (typeof pwdInput !== 'string') setError(t.automation.accessDenied)
+        if (typeof pwdInput === 'string') localStorage.removeItem('automation_password')
+      }
+    } catch {
+      if (typeof pwdInput !== 'string') setError(t.common.requestFailed)
+    }
+  }
+
+  const handleSend = async () => {
+    setStatus('')
+    if (!exchangeRate || isNaN(parseFloat(exchangeRate))) {
+      setStatus(t.automation.sendFailed + ': Invalid Exchange Rate')
+      return
+    }
+    if (!salary || isNaN(parseFloat(salary))) {
+      setStatus(t.automation.sendFailed + ': Invalid Salary')
+      return
+    }
+
+    const rate = parseFloat(exchangeRate)
+    const sal = parseFloat(salary)
+    const insurance = 5348.16
+    
+    // dev_salary
+    const devSalaryRaw = (sal - insurance) / rate
+    const devSalary = Number(devSalaryRaw.toFixed(2))
+    
+    // attendance_bonus
+    const attendanceRaw = 720 / rate
+    const attendanceBonus = Number(attendanceRaw.toFixed(2))
+    
+    // total
+    const total = Number((devSalary + attendanceBonus).toFixed(2))
+    
+    // invoice_date
+    const dt = DateTime.now()
+    const invoiceDate = dt.toFormat('MM/dd/yy')
+    
+    const start = moment('2018-08-01', 'YYYY-MM-DD')
+    const nowMoment = moment()
+    const joinMonths = nowMoment.diff(start, 'months') + 1
+
+    const payload = {
+      exchange_rate: exchangeRate,
+      salary: salary,
+      dev_salary: devSalary,
+      attendance_bonus: attendanceBonus,
+      total: total,
+      invoice_date: invoiceDate,
+      join_months: joinMonths
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/automation/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        setStatus(t.automation.success)
+      } else {
+        let errorMsg = ` (${res.status})`
+        try {
+          const data = await res.json()
+          if (data.error) errorMsg += `: ${data.error}`
+          if (data.details && data.details.message) errorMsg += ` - ${data.details.message}`
+        } catch (e) {
+          // Ignore json parse error
+        }
+        setStatus(t.automation.sendFailed + errorMsg)
+      }
+    } catch (e) {
+      setStatus(t.automation.sendFailed + ': ' + e.message)
+    }
+  }
+  
+  if (!isVerified) {
+    return (
+      <div className="tool-panel" style={{ maxWidth: 400, margin: '0 auto', textAlign: 'center' }}>
+        <h3 style={{ marginTop: 0 }}>{t.automation.title}</h3>
+        {error && <div style={{ color: '#d32f2f', marginBottom: 12, padding: 8, background: '#ffebee', borderRadius: 4 }}>{error}</div>}
+        <div style={{ marginBottom: 12, textAlign: 'left' }}>
+          <div style={{ marginBottom: 4 }}>{t.automation.passwordLabel}</div>
+          <input 
+            type="password" 
+            value={password} 
+            onChange={e => setPassword(e.target.value)}
+            placeholder={t.automation.passwordPlaceholder}
+            style={{ width: '100%' }}
+            onKeyDown={e => e.key === 'Enter' && handleVerify()}
+          />
+        </div>
+        <button onClick={() => handleVerify()} style={{ width: '100%' }}>{t.automation.verify}</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="tool-panel" style={{ maxWidth: 500, margin: '0 auto' }}>
+      <h3 style={{ marginTop: 0 }}>{t.automation.title}</h3>
+      {status && <div style={{ color: status.includes('success') || status.includes('成功') ? '#2e7d32' : '#d32f2f', marginBottom: 16, padding: 12, background: status.includes('success') || status.includes('成功') ? '#e8f5e9' : '#ffebee', borderRadius: 6 }}>{status}</div>}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', marginBottom: 8 }}>{t.automation.exchangeRateLabel}</label>
+        <input 
+          value={exchangeRate} 
+          onChange={e => setExchangeRate(e.target.value)}
+          placeholder={t.automation.exchangeRatePlaceholder}
+          style={{ width: '100%' }}
+        />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', marginBottom: 8 }}>{t.automation.salaryLabel}</label>
+        <input 
+          value={salary} 
+          onChange={e => setSalary(e.target.value)}
+          placeholder={t.automation.salaryPlaceholder}
+          style={{ width: '100%' }}
+        />
+      </div>
+      <button onClick={handleSend} style={{ width: '100%' }}>{t.automation.send}</button>
     </div>
   )
 }
@@ -779,6 +980,7 @@ function App() {
       {active === 'json' && <JsonTool t={t} />}
       {active === 'jwt' && <JwtTool t={t} />}
       {active === 'diff' && <DiffTool t={t} />}
+      {active === 'automation' && <AutomationTool t={t} />}
     </div>
   )
 }

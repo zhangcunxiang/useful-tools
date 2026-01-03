@@ -156,6 +156,45 @@ const buildServer = () => {
     }
   });
 
+  app.post('/api/automation/verify', async (req, reply) => {
+    try {
+      const { password } = req.body || {};
+      if (!password) {
+        return { success: false };
+      }
+      // Hash of '6200111'
+      const crypto = require('crypto');
+      const hash = crypto.createHash('sha256').update(password).digest('hex');
+      if (hash === '6696b819d91fd4bf8ada973d006daeaf6a8ae926b18f5e8432ebdc107026fb27') {
+        return { success: true };
+      }
+      return { success: false };
+    } catch (e) {
+      req.log.error(e);
+      return { success: false, error: 'Internal error' };
+    }
+  });
+
+  app.post('/api/automation/send', async (req, reply) => {
+    try {
+      // Forward the entire body to the webhook
+      const payload = req.body || {};
+      
+      const axios = require('axios');
+      const response = await axios.post('https://ilabs.app.n8n.cloud/webhook/081f1ae0-b7c1-423d-9ce5-96f3b6d4fd37', payload);
+
+      return response.data;
+    } catch (e) {
+      req.log.error(e);
+      const status = e.response ? e.response.status : 500;
+      reply.code(status);
+      return { 
+        error: e.message,
+        details: e.response ? e.response.data : null
+      };
+    }
+  });
+
   return app;
 };
 
