@@ -15,31 +15,63 @@ const API_BASE = (() => {
   return import.meta.env.PROD ? '' : 'http://localhost:3001'
 })()
 
-function SectionTabs({ active, onChange, t }) {
-  const tabs = [
-    { id: 'timestamp', label: t.tabs.timestamp },
-    { id: 'json', label: t.tabs.json },
-    { id: 'jwt', label: t.tabs.jwt },
-    { id: 'diff', label: t.tabs.diff },
-    { id: 'automation', label: t.tabs.automation },
-  ]
+function useLocalStorageHistory(key, maxItems = 10) {
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const addToHistory = (item) => {
+    setHistory(prev => {
+      // Remove duplicates and keep only last maxItems
+      const newHistory = [item, ...prev.filter(i => i !== item)].slice(0, maxItems)
+      localStorage.setItem(key, JSON.stringify(newHistory))
+      return newHistory
+    })
+  }
+
+  const clearHistory = () => {
+    setHistory([])
+    localStorage.removeItem(key)
+  }
+
+  return { history, addToHistory, clearHistory }
+}
+
+function HistoryPanel({ history, onSelect, title = 'History' }) {
+  if (history.length === 0) return null
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 24, justifyContent: 'center' }}>
-      {tabs.map(t => (
-        <button
-          key={t.id}
-          onClick={() => onChange(t.id)}
-          className={active === t.id ? 'tab-active' : 'tab-inactive'}
-          style={{
-            padding: '10px 20px',
-            borderRadius: '20px',
-            transition: 'all 0.2s ease',
-            fontWeight: 600
-          }}
-        >
-          {t.label}
-        </button>
-      ))}
+    <div style={{ marginTop: 16, borderTop: '1px solid #e0e0e0', paddingTop: 16 }}>
+      <div style={{ fontSize: '0.9em', fontWeight: 600, color: '#666', marginBottom: 8 }}>{title}</div>
+      <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {history.map((item, index) => (
+          <div 
+            key={index}
+            onClick={() => onSelect(item)}
+            style={{ 
+              padding: '8px', 
+              background: '#f5f5f5', 
+              borderRadius: 4, 
+              cursor: 'pointer', 
+              fontSize: '0.85em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              fontFamily: 'monospace',
+              border: '1px solid transparent'
+            }}
+            onMouseOver={e => e.currentTarget.style.borderColor = '#ccc'}
+            onMouseOut={e => e.currentTarget.style.borderColor = 'transparent'}
+            title={item}
+          >
+            {item}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -60,6 +92,18 @@ function TimestampTool({ t }) {
   const [formatInput, setFormatInput] = useState('')
   const [toTsResult, setToTsResult] = useState(null)
   const [error, setError] = useState('')
+  const browserTz = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    } catch {
+      return 'UTC'
+    }
+  }, [])
+  const localIso = useMemo(() => {
+    if (!toTsResult || !toTsResult.timestamp_ms) return ''
+    const dtLocal = DateTime.fromMillis(Number(toTsResult.timestamp_ms), { zone: 'utc' }).setZone(browserTz)
+    return dtLocal.toFormat("yyyy-LL-dd'T'HH:mm:ss.SSS")
+  }, [toTsResult, browserTz])
 
   const tzArray = useMemo(() => {
     const lines = String(tzListRaw || '').split('\n').map(s => s.trim()).filter(Boolean)
@@ -269,8 +313,14 @@ function TimestampTool({ t }) {
           <button onClick={handleToTimestamp} style={{ width: '100%' }}>{t.common.convert}</button>
           {toTsResult && (
             <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 6, textAlign: 'left' }}>
-              <div style={{ marginBottom: 4 }}><strong>{t.timestamp.ms}</strong> <code>{toTsResult.timestamp_ms}</code></div>
-              <div style={{ marginBottom: 4 }}><strong>{t.timestamp.s}</strong> <code>{toTsResult.timestamp_s}</code></div>
+              <div style={{ marginBottom: 4 }}>
+                <strong>{t.timestamp.ms}</strong> <code style={{ marginRight: 12 }}>{toTsResult.timestamp_ms}</code>
+                <strong>{t.timestamp.s}</strong> <code>{toTsResult.timestamp_s}</code>
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <strong>{t.timestamp.zone}</strong> <code style={{ marginRight: 12 }}>{browserTz}</code>
+                <code>{localIso}</code>
+              </div>
               <div><strong>{t.timestamp.utcIso}</strong> <code>{toTsResult.iso}</code></div>
             </div>
           )}
@@ -470,6 +520,7 @@ function JsonTool({ t }) {
   const [parsedData, setParsedData] = useState(null)
   const [viewMode, setViewMode] = useState('text')
   const [error, setError] = useState('')
+  const { history, addToHistory } = useLocalStorageHistory('json_history', 20)
 
   // Auto-format effect
   useEffect(() => {
@@ -480,18 +531,9 @@ function JsonTool({ t }) {
       try {
         const obj = JSON5.parse(input)
         setParsedData(obj)
-        // Only switch to tree view if not already there? 
-        // Or maybe just update the data. 
-        // User asked "auto format".
-        // Let's update output text too just in case they switch.
         setOutput(JSON.stringify(obj, null, 2))
         setError('')
-        // If it's the first load or valid input, we might want to default to tree?
-        // But let's respect current viewMode.
-        // If viewMode is text, it will update the text.
       } catch (e) {
-        // Silent fail on auto-format while typing, or maybe show small indicator?
-        // Let's not be too aggressive with errors.
       }
     }, 800)
     return () => clearTimeout(timer)
@@ -506,6 +548,7 @@ function JsonTool({ t }) {
   const format = () => {
     setError('')
     try {
+      if (input.trim()) addToHistory(input.trim())
       const obj = JSON5.parse(input)
       setOutput(JSON.stringify(obj, null, 2))
       setParsedData(obj)
@@ -517,6 +560,7 @@ function JsonTool({ t }) {
   const minify = () => {
     setError('')
     try {
+      if (input.trim()) addToHistory(input.trim())
       const obj = JSON5.parse(input)
       setOutput(JSON.stringify(obj))
       setParsedData(null)
@@ -538,14 +582,15 @@ function JsonTool({ t }) {
       <h2 style={{ marginBottom: 16 }}>{t.json.title}</h2>
       {error && <div style={{ color: '#d32f2f', marginBottom: 16, padding: 12, background: '#ffebee', borderRadius: 6 }}>{error}</div>}
       <div className="tool-grid">
-        <div className="tool-panel">
+        <div className="tool-panel" style={{ display: 'flex', flexDirection: 'column' }}>
           <textarea
             placeholder={t.json.placeholder}
             value={input}
             onChange={e => setInput(e.target.value)}
             rows={18}
-            style={{ width: '100%', fontFamily: 'monospace', height: '100%', resize: 'none' }}
+            style={{ width: '100%', fontFamily: 'monospace', height: '300px', resize: 'vertical', marginBottom: 16 }}
           />
+          <HistoryPanel history={history} onSelect={setInput} title="Input History" />
         </div>
         <div className="tool-panel" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
            <div style={{ background: '#f5f5f5', borderBottom: '1px solid #e0e0e0', padding: '4px 8px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -597,13 +642,17 @@ function JwtTool({ t }) {
   const [tokenInput, setTokenInput] = useState('')
   const [decoded, setDecoded] = useState(null)
   const [payloadInput, setPayloadInput] = useState(`{
-  "sub": "123",
-  "name": "Alice",
-  "admin": true
+  "id": 3,
+  "deviceId": "web",
+  "version": 18,
+  "iat": 1768891419
 }`)
-  const [secretInput, setSecretInput] = useState('')
+  const [secretInput, setSecretInput] = useState('staging')
   const [encoded, setEncoded] = useState('')
   const [error, setError] = useState('')
+  
+  const { history: decodeHistory, addToHistory: addToDecodeHistory } = useLocalStorageHistory('jwt_decode_history', 10)
+  const { history: encodeHistory, addToHistory: addToEncodeHistory } = useLocalStorageHistory('jwt_encode_history', 10)
 
   useEffect(() => {
     const decode = async () => {
@@ -621,12 +670,17 @@ function JwtTool({ t }) {
           setError(data.error)
         } else {
           setDecoded(data)
+          addToDecodeHistory(tokenInput)
         }
       } catch {
         setError(t.jwt.decodeError)
       }
     }
-    decode()
+    // Debounce decoding to avoid too many requests and history updates while typing
+    const timer = setTimeout(() => {
+      if (tokenInput.trim()) decode()
+    }, 800)
+    return () => clearTimeout(timer)
   }, [tokenInput])
 
   const handleEncode = async () => {
@@ -634,6 +688,7 @@ function JwtTool({ t }) {
     setEncoded('')
     try {
       const payload = JSON5.parse(payloadInput)
+      addToEncodeHistory(payloadInput)
       const res = await fetch(`${API_BASE}/api/jwt/encode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -664,6 +719,7 @@ function JwtTool({ t }) {
             rows={8}
             style={{ width: '100%', fontFamily: 'monospace', marginBottom: 16 }}
           />
+          <HistoryPanel history={decodeHistory} onSelect={setTokenInput} title="Token History" />
           {decoded && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontWeight: 600, marginBottom: 4, color: '#444' }}>{t.jwt.headerLabel}</div>
@@ -686,11 +742,12 @@ function JwtTool({ t }) {
             rows={10}
             style={{ width: '100%', fontFamily: 'monospace', marginBottom: 12 }}
           />
+          <HistoryPanel history={encodeHistory} onSelect={setPayloadInput} title="Payload History" />
           <input
             placeholder={t.jwt.secretPlaceholder}
             value={secretInput}
             onChange={e => setSecretInput(e.target.value)}
-            style={{ width: '100%', padding: 8, marginBottom: 16 }}
+            style={{ width: '100%', padding: 8, marginBottom: 16, marginTop: 16 }}
           />
           <div>
             <button onClick={handleEncode} style={{ width: '100%' }}>{t.jwt.generate}</button>
@@ -972,15 +1029,51 @@ function App() {
   }, [lang])
 
   const [active, setActive] = useState('timestamp')
+
+  const tabs = [
+    { id: 'timestamp', label: t.tabs.timestamp },
+    { id: 'json', label: t.tabs.json },
+    { id: 'jwt', label: t.tabs.jwt },
+    { id: 'diff', label: t.tabs.diff },
+    { id: 'automation', label: t.tabs.automation },
+  ]
+
   return (
-    <div id="root-app">
-      <h1>{t.appTitle}</h1>
-      <SectionTabs active={active} onChange={setActive} t={t} />
-      {active === 'timestamp' && <TimestampTool t={t} />}
-      {active === 'json' && <JsonTool t={t} />}
-      {active === 'jwt' && <JwtTool t={t} />}
-      {active === 'diff' && <DiffTool t={t} />}
-      {active === 'automation' && <AutomationTool t={t} />}
+    <div id="root-app" style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
+      <div className="sidebar" style={{ width: '240px', background: '#f7f9fc', borderRight: '1px solid #e0e0e0', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '0 24px 20px', fontSize: '1.2em', fontWeight: 'bold', color: '#2e7d32', textAlign: 'left' }}>
+           My Tools
+        </div>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActive(tab.id)}
+            className={`sidebar-item ${active === tab.id ? 'active' : ''}`}
+            style={{
+               padding: '12px 24px',
+               textAlign: 'left',
+               background: active === tab.id ? '#e8f5e9' : 'transparent',
+               color: active === tab.id ? '#1b5e20' : '#555',
+               border: 'none',
+               borderRight: active === tab.id ? '3px solid #2e7d32' : '3px solid transparent',
+               cursor: 'pointer',
+               fontSize: '1em',
+               fontWeight: active === tab.id ? 600 : 400,
+               width: '100%',
+               display: 'block'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="main-content" style={{ flex: 1, overflow: 'auto', padding: '32px', background: '#fff' }}>
+        {active === 'timestamp' && <TimestampTool t={t} />}
+        {active === 'json' && <JsonTool t={t} />}
+        {active === 'jwt' && <JwtTool t={t} />}
+        {active === 'diff' && <DiffTool t={t} />}
+        {active === 'automation' && <AutomationTool t={t} />}
+      </div>
     </div>
   )
 }
