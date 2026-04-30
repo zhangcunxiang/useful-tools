@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports:
+      - "9090:3001"
+    # In containers, localhost is the container itself. Use host.docker.internal to reach n8n on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PORT=3001
+      - AUTOMATION_WEBHOOK_URL=http://host.docker.internal:5678/webhook/081f1ae0-b7c1-423d-9ce5-96f3b6d4fd37

@@ -1,5 +1,8 @@
+const path = require('path');
+const fs = require('fs');
 const Fastify = require('fastify');
 const cors = require('@fastify/cors');
+const fastifyStatic = require('@fastify/static');
 const jwt = require('jsonwebtoken');
 const { DateTime } = require('luxon');
 
@@ -179,9 +182,12 @@ const buildServer = () => {
     try {
       // Forward the entire body to the webhook
       const payload = req.body || {};
-      
+      const webhookUrl =
+        process.env.AUTOMATION_WEBHOOK_URL ||
+        'http://localhost:5678/webhook/081f1ae0-b7c1-423d-9ce5-96f3b6d4fd37';
+
       const axios = require('axios');
-      const response = await axios.post('http://localhost:5678/webhook/081f1ae0-b7c1-423d-9ce5-96f3b6d4fd37', payload);
+      const response = await axios.post(webhookUrl, payload);
 
       return response.data;
     } catch (e) {
@@ -194,6 +200,28 @@ const buildServer = () => {
       };
     }
   });
+
+  const distPath = process.env.WEB_DIST || path.join(__dirname, 'public');
+  const indexHtml = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    app.register(fastifyStatic, {
+      root: distPath,
+      prefix: '/',
+      wildcard: false,
+    });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        reply.code(405).send();
+        return;
+      }
+      const pathname = req.url.split('?')[0];
+      if (pathname.startsWith('/api')) {
+        reply.code(404).send({ error: 'Not found' });
+        return;
+      }
+      reply.sendFile('index.html');
+    });
+  }
 
   return app;
 };

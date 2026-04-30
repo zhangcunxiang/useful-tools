@@ -7,13 +7,8 @@ import './App.css'
 import { detectLanguage, getTranslations } from './i18n'
 import tzListRaw from '../timezone.csv?raw'
 
-const API_BASE = (() => {
-  if (typeof window !== 'undefined') {
-    const h = window.location.hostname
-    if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3001'
-  }
-  return import.meta.env.PROD ? '' : 'http://localhost:3001'
-})()
+// Dev: Vite proxies /api to the backend. Prod/Docker: same origin as the static app.
+const API_BASE = ''
 
 function useLocalStorageHistory(key, maxItems = 10) {
   const [history, setHistory] = useState(() => {
